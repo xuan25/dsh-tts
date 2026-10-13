@@ -15,6 +15,7 @@
     "lib/",
     "src/",
     "test/",
+    "skill/",
     "README.md",
     "cordis.patch.yml"
   ],
@@ -26,6 +27,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6",
     "@deepseek-ai/dsh-system-prompt": ">=0.1.0-rc.6",
     "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
     "@deepseek-ai/schemastery": ">=3.18.1",

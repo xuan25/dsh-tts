@@ -7,8 +7,10 @@
 //     shapes, the static voice fallback, discovery, probes, phonemize)
 //   - the tts tool behavior through a fake cordis context (verb matrix,
 //     provider/model resolution, output placement)
-//   - the plugin entry point (class wiring + the delivered config schema)
-//   - shipped-file gates: manifest sanity, strict ASCII
+//   - the plugin entry point (class wiring, the bundled skill, the delivered
+//     config schema)
+//   - shipped-file gates: manifest sanity, strict ASCII (including the skill
+//     tree)
 // Run: pnpm run selftest   (after pnpm run build)
 import http from 'node:http'
 import fs from 'node:fs'
@@ -795,11 +797,13 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
   fs.rmSync(home, { recursive: true, force: true })
 }
 
-// -- plugin entry point (class wiring + the delivered config schema) ----------
+// -- plugin entry point (class wiring, the bundled skill, the delivered
+//    config schema) -----------------------------------------------------------
 
 {
   const provided = []
   const registered = []
+  const skillCalls = []
   const sections = []
   const pctx = {
     reflect: { provide: (name) => { provided.push(name) } },
@@ -807,6 +811,12 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
     tools: {
       register: (def) => {
         registered.push(def)
+        return () => {}
+      },
+    },
+    skills: {
+      registerProvider: (f) => {
+        skillCalls.push(f)
         return () => {}
       },
     },
@@ -818,6 +828,21 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
   eq('plugin: tool registered once', registered.map((d) => d.name), ['tts'])
   eq('plugin: tool verbs', registered[0].parameters.properties.verb.enum, [...VERBS])
   eq('plugin: system prompt section', sections.map((s) => [s.name, s.order]), [['dsh-tts', 3000]])
+
+  // the bundled skill registers under the plugin name
+  eq('plugin: one skill provider', skillCalls.length, 1)
+  const sp = await skillCalls[0]()
+  eq('plugin: skill provider name', sp.name, 'dsh-tts')
+  const cand = (await sp.list())[0]
+  eq('plugin: skill candidate name', cand.name, 'dsh-tts')
+  eq('plugin: skill candidate provider', cand.provider, 'dsh-tts')
+  eq('plugin: skill candidate source', cand.source, 'bundled')
+  ok('plugin: skill description', typeof cand.description === 'string' && cand.description.length > 0)
+  ok('plugin: skill invocation open', cand.invocation.modelInvocable === true && cand.invocation.userInvocable === true)
+  const got = await sp.get(cand)
+  ok('plugin: skill body', typeof got.content === 'string' && got.content.length > 0 && !got.content.startsWith('---'))
+  ok('plugin: skill body has the title', got.content.includes('# dsh-tts'))
+  eq('plugin: skill get unknown candidate', await sp.get({ name: 'other' }), undefined)
 
   // the Config schema: a valid patch normalizes, unknown keys and bad names fail
   const cfg = DshTtsPlugin.Config({ defaultProvider: 'kokoro', providers: { kokoro: { baseURL: 'http://k', models: ['m1'] } } })
@@ -854,7 +879,7 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
   eq('manifest: entry', manifest.main, './lib/index.js')
   ok('manifest: exports point at entry + types', manifest.exports['.'].default === './lib/index.js' && manifest.exports['.'].types === './lib/index.d.ts')
   ok('manifest: no runtime dependencies', !('dependencies' in manifest))
-  ok('manifest: peer set', ['@deepseek-ai/cordis', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-system-prompt', '@deepseek-ai/schemastery', 'yaml'].every((p) => p in manifest.peerDependencies))
+  ok('manifest: peer set', ['@deepseek-ai/cordis', '@deepseek-ai/dsh-skill', '@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-system-prompt', '@deepseek-ai/schemastery', 'yaml'].every((p) => p in manifest.peerDependencies))
   eq('manifest: bundle patch pointer', manifest.dsh.bundle.patch, './cordis.patch.yml')
   ok('manifest: bundle patch file present', fs.existsSync(path.join(PKG, 'cordis.patch.yml')))
   ok('manifest: files entries present', manifest.files.every((f) => fs.existsSync(path.join(PKG, f.replace(/\/$/, '')))))
@@ -876,7 +901,7 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
     }
     return out
   }
-  const shipped = [...walk(path.join(root, 'src')), ...walk(path.join(root, 'test')), ...walk(path.join(root, 'lib')), path.join(root, 'package.json'), path.join(root, 'README.md'), path.join(root, 'cordis.patch.yml')]
+  const shipped = [...walk(path.join(root, 'src')), ...walk(path.join(root, 'test')), ...walk(path.join(root, 'lib')), ...walk(path.join(root, 'skill')), path.join(root, 'package.json'), path.join(root, 'README.md'), path.join(root, 'cordis.patch.yml')]
   const NON_ASCII_RE = /[^\x00-\x7f]/
   const bad = []
   for (const f of shipped) {

@@ -3,34 +3,50 @@
 Text-to-speech plugin for dsh: one `tts` tool that turns text into an audio
 file (wav / mp3 / flac / aac / opus / pcm) through any OpenAI-compatible TTS
 backend, so agents can voice their output without per-backend glue. The same
-tool lists voices and models, probes routes, and calls the backend's dev
-phonemize endpoint. It is a thin client: the audio lands on disk and container
-checks are reported.
+tool lists voices and models, probes the routes, and calls the backend's dev
+phonemize endpoint.
 
 ## Tool verbs
 
 | verb        | network | what it does |
 | ----------- | ------- | ------------ |
-| `synth`     | yes     | synthesize (writes the audio file, runs container checks) |
-| `voices`    | yes     | list voices (optionally filtered); a 404 falls back to the static OpenAI table (`source: "static"`) |
-| `providers` | no      | list configured routes: fields, per-field provenance, credential state |
-| `models`    | maybe   | route models: declared, or discovered via `GET {baseURL}/models` |
-| `status`    | yes     | probe each route: `GET {baseURL}/models` plus an optional server-root `GET /health` |
-| `phonemize` | yes     | `POST /dev/phonemize {text, language}` (server root); 404/405 = not supported |
+| `synth`     | yes     | Synthesizes the requested speech. The tool writes the audio file to disk and runs container checks on the returned bytes. |
+| `voices`    | yes     | Lists the backend voices, optionally filtered. When the backend returns 404 to `GET {baseURL}/audio/voices`, the tool serves the static OpenAI table and marks `source: static`. |
+| `providers` | no      | Lists the configured routes with their fields, the originating layer of each field, and the credential state. The verb reads the local configuration and makes no network request. |
+| `models`    | maybe   | Reports the model list of each route. A route with declared models reports the declared list from the config layer, and a route without declared models reports the live `GET {baseURL}/models` probe. |
+| `status`    | yes     | Probes each route: the `GET {baseURL}/models` listing plus the optional server-root `GET /health` liveness probe. |
+| `phonemize` | yes     | Calls the backend's `POST /dev/phonemize` endpoint at the server root. A 404 or 405 response reports the endpoint as unsupported. |
 
 Key `synth` behaviors:
 
-- `voice` is required (no default; voice sets are provider-specific).
-- `model` default: the route's single declared model; otherwise the call
-  reports the model list and asks for an explicit `model`.
-- `response_format` defaults to `wav`. The backend owns container
-  correctness; the plugin validates (RIFF walk for wav, magic checks for
-  mp3/flac/aac/opus) and reports: `error` = the call fails, the file is kept;
-  `warnings` = known defect, e.g. placeholder RIFF header / data chunk sizes
-  (`0xFFFFFFFF` or `0x7FFFFFFF`) some backends emit.
-- Output path: `out` argument (file path, or a directory via trailing
-  separator), else `<process.cwd()>/tts/<unixts>_<voice>.<ext>`.
-- Timeouts (constants, not config): synth 180 s, probes 15 s, phonemize 30 s.
+- The `voice` argument is required, and there is no default: the voice set is
+  provider-specific. The available ids are listed by the `voices` verb.
+- When the call omits `model`, the tool uses the route's single declared
+  model. When a route declares no models, the tool resolves the model by a
+  live `/models` probe. When the declared or probed model list contains
+  several models, the call fails and lists the candidates.
+- The `response_format` argument defaults to `wav`, and the tool sends the
+  value verbatim.
+- The backend owns container correctness, and the tool validates the returned
+  bytes: a RIFF walk for `wav`, and magic checks for the other formats
+  (`pcm` carries no container check). When the payload is not the claimed
+  container, the call fails and the tool keeps the file on disk. When the
+  container carries a known defect, for example the placeholder RIFF chunk
+  sizes (`0xFFFFFFFF` or `0x7FFFFFFF`) some backends emit, the successful
+  document reports it in `warnings`.
+- When the call sets `out`, the output path is that argument (a file path, or
+  a directory marked by a trailing separator or by existing on disk). When the
+  call omits `out`, the tool writes the file to
+  `<process.cwd()>/tts/<unixts>_<voice>.<ext>`. The file extension comes from
+  the `response_format` value.
+- The `speed` and `language` arguments are sent verbatim, and only when the
+  call sets them.
+- The synth timeout is 180 s, and the probe and phonemize timeouts are 15 s
+  and 30 s.
+
+The plugin ships a `dsh-tts` skill. The skill is the full tool reference for
+agent contexts: it carries the parameter table, the env contract, and the
+error shapes.
 
 ## Installation
 
@@ -41,105 +57,100 @@ plugin command:
 dsh plugin --profile <name> add dsh-tts
 ```
 
-Configuration is layered: built-in defaults, `DSH_TTS_*` env, a cordis patch
-file, a `dsh-tts` settings section (see below); the plugin creates no config
-or state files.
+Configuration is layered: built-in defaults, the `DSH_TTS_*` env contract, a
+cordis patch file, a `dsh-tts` settings section (see below); the plugin
+creates no config or state files.
 
 ## Configuration
 
-Providers are configured in any of three layers, lowest to highest priority;
-per-field provenance is reported by the `providers` verb, so a shadowed value
-is never silent:
+Providers are configured in any of four layers, lowest to highest priority;
+the `providers` verb reports the originating layer of every field, so a
+shadowed value is never silent:
 
-1. built-in default (`api: openai-compatible`),
+1. the built-in default (`api: openai-compatible`),
 2. the `DSH_TTS_*` env contract (static per process boot),
 3. the cordis config layer (a patch entry with id `dsh-tts` and a `config`
    object, or profile-level patches),
-4. a `dsh-tts:` section in the user settings document (`$DSH_HOME/settings.yaml`)
-   - re-read on every call, so settings edits apply without a restart.
-
-### Env contract (1:1 with the config fields)
-
-| variable | config field |
-| -------- | ------------ |
-| `DSH_TTS_DEFAULT_PROVIDER` | `defaultProvider` |
-| `DSH_TTS_PROVIDER_<NAME>_BASEURL` | `providers.<name>.baseURL` |
-| `DSH_TTS_PROVIDER_<NAME>_API` | `providers.<name>.api` |
-| `DSH_TTS_PROVIDER_<NAME>_APIKEYENV` | `providers.<name>.apiKeyEnv` |
-| `DSH_TTS_PROVIDER_<NAME>_HEADERS` | `providers.<name>.headers` (a JSON object string) |
-| `DSH_TTS_PROVIDER_<NAME>_MODELS` | `providers.<name>.models` (comma-separated) |
-| `DSH_TTS_PROVIDER_<NAME>_DISPLAYNAME` | `providers.<name>.displayName` |
-
-`<NAME>` is the route name uppercased, non-alphanumerics become `_`
-(`kokoro-local` -> `KOKORO_LOCAL`); matching between layers is
-case-insensitive and treats `_` / `-` as the same separator. A route without
-a base URL, or whose name does not match `^[a-z][a-z0-9-]{0,63}$` (lowercase
-letter first, letters/digits/hyphens, max 64), is dropped with a warning.
-
-`baseURL` is the **OpenAI-compatible base URL including the `/v1` prefix**
-(the same shape as an LLM provider base URL, e.g. `http://kokoro-tts:8880/v1`):
-the plugin appends the OpenAI paths to it verbatim
-(`/audio/speech`, `/audio/voices`, `/models`), while `/health` and
-`/dev/phonemize` live outside the `/v1` namespace and are addressed at the
-server root, derived by stripping a trailing `/v1` from the base URL.
-
-### Settings section
+4. the `dsh-tts:` section in the user settings document
+   (`$DSH_HOME/settings.yaml`), which the plugin re-reads on every call, so
+   settings edits apply without a restart.
 
 ```yaml
 dsh-tts:
-  defaultProvider: kokoro-local
+  defaultProvider: local
   providers:
-    kokoro-local:
-      baseURL: http://kokoro-tts:8880/v1
-      headers:
-        Authorization: Bearer not-needed   # keyless local backends
+    local:
+      baseURL: http://<host>:<port>/v1
     hosted:
       baseURL: https://api.example.com/v1
-      apiKeyEnv: TTS_API_KEY
-      models: [speech-1]
-      displayName: Hosted TTS
+      apiKeyEnv: DSH_TTS_HOSTED_KEY
+      models: [kokoro-v2]
+      displayName: Hosted Speech
 ```
 
-### Credentials
-
-`apiKeyEnv` is a reference to an environment variable name (never a secret in
-config). Per request the value resolves from the process environment, then
-from `$DSH_HOME/.credentials.yaml` (a flat `NAME: value` mapping). An
-unresolved reference on a credentialed synth is an error; discovery verbs
-degrade instead of failing.
+The env contract mirrors the config fields 1:1: `DSH_TTS_DEFAULT_PROVIDER`,
+and per route `<NAME>` the variables `DSH_TTS_PROVIDER_<NAME>_BASEURL`,
+`DSH_TTS_PROVIDER_<NAME>_API`, `DSH_TTS_PROVIDER_<NAME>_APIKEYENV`,
+`DSH_TTS_PROVIDER_<NAME>_HEADERS`, `DSH_TTS_PROVIDER_<NAME>_MODELS`,
+`DSH_TTS_PROVIDER_<NAME>_DISPLAYNAME`. The `<NAME>` segment is the route name
+uppercased with `-` written as `_`. The `headers` value is a JSON object
+string, and the `models` value is a comma-separated list of model ids. The
+`baseURL` value is the OpenAI-compatible base URL including the `/v1` prefix
+(the same shape as an LLM provider base URL); the plugin appends
+`/audio/speech`, `/audio/voices`, and `/models` to it verbatim, and it
+addresses `/health` and `/dev/phonemize` at the server root, which it derives
+by stripping a trailing `/v1` from the base URL. The `apiKeyEnv` value is a
+reference to an environment variable name, never a secret in config; per
+request the value resolves from the process environment, then from
+`$DSH_HOME/.credentials.yaml`.
 
 ## Examples
 
 ```jsonc
-// synthesize with the default route and its single declared model
+// Synthesize with the default route and its single declared model.
 { "verb": "synth", "input": "hello world", "voice": "zf_xiaoxiao" }
-// pick a route, format, speed, and output location explicitly
-{ "verb": "synth", "provider": "kokoro-local", "input": "the quick brown fox",
+// Pick a route, format, speed, and output location explicitly.
+{ "verb": "synth", "provider": "hosted", "input": "the quick brown fox",
   "voice": "zf_xiaoxiao", "response_format": "mp3", "speed": 1.1, "out": "/tmp/hi.mp3" }
-// find the zh-female voices on the backend (id prefix filter)
-{ "verb": "voices", "provider": "kokoro-local", "filter": "zf_" }
-// or a case-insensitive substring over id and name
-{ "verb": "voices", "provider": "kokoro-local", "query": "zf" }
-// what is configured, and where each field comes from
+// Find the voices by an id prefix filter.
+{ "verb": "voices", "filter": "zf_" }
+// Or by a case-insensitive substring over the id and name.
+{ "verb": "voices", "query": "zf" }
+// List what is configured, and where each field comes from.
 { "verb": "providers" }
-// backend health
+// Probe the backend health (the live /models probe).
 { "verb": "status" }
+// Ask the backend dev phonemize endpoint (a 404/405 response reports it as unsupported).
+{ "verb": "phonemize", "text": "hello world", "language": "zh" }
 ```
 
 ## Troubleshooting
 
-- `TTS_NOT_CONFIGURED` - no route survived configuration: check base URLs and
-  the warnings in the provider log.
-- `credential missing: environment variable "X" is not set` - set `X` in the
-  environment or add it to `$DSH_HOME/.credentials.yaml`.
-- `unknown provider "x"` - route names match case-insensitively with `_`/`-`
-  equivalence; the error lists the configured names.
-- `wav: ... placeholder ...` warning - the backend emitted placeholder RIFF
-  chunk sizes (`0xFFFFFFFF` or `0x7FFFFFFF`); the payload plays, strict
-  parsers misread it.
-- `multiple providers configured (...) and no default is set` - pass
-  `provider` explicitly or set `DSH_TTS_DEFAULT_PROVIDER` / the settings
-  `defaultProvider`.
+A failing call returns a JSON document with an `error` message field, and the
+message text identifies the failure.
+
+- When the error message is "TTS_NOT_CONFIGURED", no route survived
+  configuration. Check the base URLs; the tool reports each route that
+  configuration drops as a warning in the log.
+- When the error message carries the text "credential missing: environment
+  variable "X" is not set", the credential reference does not resolve. Set
+  `X` in the environment or add it to `$DSH_HOME/.credentials.yaml`.
+- When the error message carries the text "unknown provider "x"", the route
+  name matches no configured route. Route names match case-insensitively and
+  treat `_` and `-` as the same separator; the error lists the configured
+  names.
+- When the error message carries the text "multiple providers configured
+  (...) and no default is set", pass the `provider` argument explicitly, or
+  set `DSH_TTS_DEFAULT_PROVIDER`, or set the settings `defaultProvider`.
+- When `status` reports `reachable: false`, the `error` field carries the
+  cause; the probe uses a 15 s budget against `GET {baseURL}/models`.
+- When `voices` reports `source: static`, the backend answered 404 to
+  `GET {baseURL}/audio/voices`, and the tool returned the static OpenAI
+  table. The listed voice ids may not exist on that backend.
+- When the synth document carries a container check error, the tool could not
+  verify the returned bytes as the claimed container. Inspect the kept file
+  at `out`; the backend may return an unsupported container for the requested
+  `response_format`.
 
 ## Build
 

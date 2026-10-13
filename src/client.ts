@@ -2,7 +2,7 @@
 //
 // Wire contract (the plugin is protocol-bound, backend-agnostic). baseURL is
 // the OpenAI-compatible base URL INCLUDING the /v1 prefix (the same shape as
-// an LLM provider base URL, e.g. http://kokoro-tts:8880/v1); the OpenAI paths
+// an LLM provider base URL, e.g. http://<host>:<port>/v1); the OpenAI paths
 // are appended to it verbatim:
 //   POST {baseURL}/audio/speech    OpenAI-shaped body, binary response
 //   GET  {baseURL}/audio/voices    voice listing (404 -> static OpenAI table)

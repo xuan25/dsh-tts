@@ -5,9 +5,19 @@
 // Pure Node dependencies, no framework packages; safe to import from selftest.
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /** Plugin identifier (registered name, logger tag, prompt section name). */
 export const PLUGIN_NAME = 'dsh-tts'
+
+/**
+ * The package root of the running code (src development state / lib deployment
+ * state are isomorphic).
+ * @returns absolute package root path.
+ */
+export function packageRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+}
 
 /**
  * Resolve the DSH home directory: the DSH_HOME environment variable, falling

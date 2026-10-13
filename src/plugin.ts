@@ -5,18 +5,20 @@
 // layer delivered by the loader (a patch entry targeting this plugin's id with
 // a `config` object) and/or a `dsh-tts:` section in the user settings document
 // (re-read on every call, so settings edits apply without a restart).
-// Pure client: no state, no tick - the plugin registers exactly two things in
-// the constructor: the tts tool and a one-line system-prompt pointer.
+// Pure client: no state, no tick - the plugin registers exactly three things
+// in the constructor: the tts tool, the bundled dsh-tts skill, and a one-line
+// system-prompt pointer.
 import Schema from '@deepseek-ai/schemastery'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { PLUGIN_NAME, PROVIDER_NAME_RE } from './util.js'
 import type { DeliveredConfig } from './types.js'
+import { registerSkill } from './skill.js'
 import { registerTool } from './tool.js'
 
 /** The declared per-provider fields (the camelCase mirror of the env fields). */
 const PROVIDER_FIELDS = {
   api: 'the wire protocol; the only v1 value is "openai-compatible"',
-  baseURL: 'the OpenAI-compatible base URL including the /v1 prefix (the same shape as an LLM provider base URL, e.g. http://kokoro-tts:8880/v1); the plugin appends /audio/speech, /audio/voices, /models, and addresses /health and /dev/phonemize at the server root (a trailing /v1 is stripped)',
+  baseURL: 'the OpenAI-compatible base URL including the /v1 prefix (the same shape as an LLM provider base URL, e.g. http://<host>:<port>/v1); the plugin appends /audio/speech, /audio/voices, /models, and addresses /health and /dev/phonemize at the server root (a trailing /v1 is stripped)',
   apiKeyEnv: 'the environment variable name holding the key (resolved per request: process env, then <dshHome>/.credentials.yaml); absent = no key needed',
   headers: 'extra per-request headers (an explicit Authorization entry wins over the credential)',
   models: 'the declared model ids (absent = discover online from /models at call time)',
@@ -74,17 +76,17 @@ const PROVIDER_CONFIG = rejectUnknownKeys(
 
 /**
  * dsh-tts plugin (class form).
- * The constructor performs synchronous initialization (logger, tool and
- * system-prompt section registration); configuration itself is resolved on
+ * The constructor performs synchronous initialization (logger, tool and skill
+ * registration, system-prompt section); configuration itself is resolved on
  * every call (the settings layer is hot; env is static per process boot).
  * inject = every service the plugin reads: the dsh host services tools /
- * systemPrompt (dsh-tools / dsh-system-prompt: ctx.tools.register /
- * ctx.systemPrompt.section). Declaring both converts a host-missing-the-
- * service failure from a cryptic property error into the clear `cannot get
- * required service "X"`, keeping the declaration consistent with the actual
- * read sites (same convention as dsh-ntfy / dsh-timer). A declared service
- * with no implementation parks the plugin fiber (it never activates, it does
- * not throw).
+ * skills / systemPrompt (dsh-tools / dsh-skill / dsh-system-prompt:
+ * ctx.tools.register / ctx.skills.registerProvider / ctx.systemPrompt.section).
+ * Declaring them converts a host-missing-the-service failure from a cryptic
+ * property error into the clear `cannot get required service "X"`, keeping
+ * the declaration consistent with the actual read sites (same convention as
+ * dsh-ntfy / dsh-imagegen). A declared service with no implementation parks
+ * the plugin fiber (it never activates, it does not throw).
  * The static Config schema validates the delivered config layer before the
  * constructor runs (a violation fails the entry loudly); the layer is then
  * folded onto the env contract at call time through resolveConfig, with
@@ -92,7 +94,7 @@ const PROVIDER_CONFIG = rejectUnknownKeys(
  */
 export class DshTtsPlugin extends Service {
   static name = PLUGIN_NAME
-  static readonly inject = ['tools', 'systemPrompt']
+  static readonly inject = ['tools', 'skills', 'systemPrompt']
   static readonly Config = rejectUnknownKeys(
     Schema.object({
       defaultProvider: Schema.string().description('the provider route used when a call names no provider'),
@@ -105,6 +107,7 @@ export class DshTtsPlugin extends Service {
     super(ctx, PLUGIN_NAME)
     const logger = ctx.logger(PLUGIN_NAME)
     registerTool(ctx, config, (msg) => logger.warn(msg))
+    registerSkill(ctx)
     ctx.systemPrompt.section({
       name: PLUGIN_NAME,
       order: 3000,
