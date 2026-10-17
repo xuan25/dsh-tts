@@ -1,7 +1,7 @@
 {
   "name": "dsh-tts",
   "version": "0.1.0",
-  "description": "Text-to-speech plugin for dsh: a single tts tool (synth/voices/providers/models/status/phonemize verbs) over OpenAI-compatible TTS backends, configured via DSH_TTS_* env or the dsh-tts: settings section",
+  "description": "Text-to-speech plugin for dsh: a single tts tool (synth/voices/providers/models/status/phonemize verbs) over OpenAI-compatible TTS backends, configured via TTS_* env or the dsh-tts: settings section",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",

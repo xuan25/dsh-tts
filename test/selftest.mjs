@@ -170,12 +170,12 @@ function makeHome() {
 {
   const home = makeHome()
   const env = {
-    DSH_TTS_DEFAULT_PROVIDER: 'kokoro-local',
-    DSH_TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://a:1/v1',
-    DSH_TTS_PROVIDER_KOKORO_LOCAL_APIKEYENV: 'K1',
-    DSH_TTS_PROVIDER_KOKORO_LOCAL_MODELS: 'm1, m2',
-    DSH_TTS_PROVIDER_KOKORO_LOCAL_HEADERS: '{"Authorization":"Bearer not-needed","X-Extra":"1"}',
-    DSH_TTS_PROVIDER_KOKORO_LOCAL_DISPLAYNAME: 'Local',
+    TTS_DEFAULT_PROVIDER: 'kokoro-local',
+    TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://a:1/v1',
+    TTS_PROVIDER_KOKORO_LOCAL_APIKEYENV: 'K1',
+    TTS_PROVIDER_KOKORO_LOCAL_MODELS: 'm1, m2',
+    TTS_PROVIDER_KOKORO_LOCAL_HEADERS: '{"Authorization":"Bearer not-needed","X-Extra":"1"}',
+    TTS_PROVIDER_KOKORO_LOCAL_DISPLAYNAME: 'Local',
   }
   const warns = []
   const cfg = resolveConfig(undefined, env, home, WARN_SINK(warns))
@@ -217,7 +217,7 @@ function makeHome() {
   const warns3 = []
   const cfg3 = resolveConfig(
     { providers: { 'kokoro-local': { apiKeyEnv: 'K2', models: ['only'] } } },
-    { DSH_TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://a:1/v1' },
+    { TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://a:1/v1' },
     home,
     WARN_SINK(warns3),
   )
@@ -245,7 +245,7 @@ function makeHome() {
   const warns4 = []
   const cfg4 = resolveConfig(
     { providers: { 'kokoro-local': { baseURL: 'http://cordis:1/v1', apiKeyEnv: 'K' } } },
-    { DSH_TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://env:1/v1' },
+    { TTS_PROVIDER_KOKORO_LOCAL_BASEURL: 'http://env:1/v1' },
     home4,
     WARN_SINK(warns4),
   )
@@ -283,13 +283,13 @@ function makeHome() {
   eq('config(drop): default to a dropped provider is ignored', cfg7.defaultProvider, null)
 
   const warns8 = []
-  const cfg8 = resolveConfig({ defaultProvider: '9bad' }, { DSH_TTS_PROVIDER_A_BASEURL: 'http://a' }, home, WARN_SINK(warns8))
+  const cfg8 = resolveConfig({ defaultProvider: '9bad' }, { TTS_PROVIDER_A_BASEURL: 'http://a' }, home, WARN_SINK(warns8))
   eq('config(drop): invalid default name is ignored', cfg8.defaultProvider, null)
   ok('config(drop): invalid name warning', warns8.length === 1 && warns8[0].includes('not a valid name'))
 
   // provider names that fail the name contract are dropped (env and settings layers)
   const warnsA = []
-  const cfgA = resolveConfig(undefined, { DSH_TTS_PROVIDER_9LIVES_BASEURL: 'http://x' }, home, WARN_SINK(warnsA))
+  const cfgA = resolveConfig(undefined, { TTS_PROVIDER_9LIVES_BASEURL: 'http://x' }, home, WARN_SINK(warnsA))
   eq('config(name): digit-leading env name dropped', cfgA.providers.length, 0)
   ok('config(name): drop warning', warnsA.length === 1 && warnsA[0].includes('not a valid name'))
   const homeB = makeHome()
@@ -307,7 +307,7 @@ function makeHome() {
   const warns9 = []
   const cfg9 = resolveConfig(
     undefined,
-    { DSH_TTS_PROVIDER_A_BASEURL: 'http://a', DSH_TTS_PROVIDER_A_HEADERS: 'not json' },
+    { TTS_PROVIDER_A_BASEURL: 'http://a', TTS_PROVIDER_A_HEADERS: 'not json' },
     home,
     WARN_SINK(warns9),
   )
@@ -597,12 +597,12 @@ const CLIENT_ENV = { [TTS_TEST_KEY_NAME]: 'testkey' }
 {
   const home = makeHome()
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-tts-tool-'))
-  const K = 'DSH_TTS_PROVIDER_KOKORO_LOCAL_BASEURL'
-  const O = 'DSH_TTS_PROVIDER_OTHER_BASEURL'
-  const D = 'DSH_TTS_DEFAULT_PROVIDER'
-  const MODELS_K = 'DSH_TTS_PROVIDER_KOKORO_LOCAL_MODELS'
-  const MODELS_O = 'DSH_TTS_PROVIDER_OTHER_MODELS'
-  const KEYREF_K = 'DSH_TTS_PROVIDER_KOKORO_LOCAL_APIKEYENV'
+  const K = 'TTS_PROVIDER_KOKORO_LOCAL_BASEURL'
+  const O = 'TTS_PROVIDER_OTHER_BASEURL'
+  const D = 'TTS_DEFAULT_PROVIDER'
+  const MODELS_K = 'TTS_PROVIDER_KOKORO_LOCAL_MODELS'
+  const MODELS_O = 'TTS_PROVIDER_OTHER_MODELS'
+  const KEYREF_K = 'TTS_PROVIDER_KOKORO_LOCAL_APIKEYENV'
   const touched = [K, O, D, MODELS_K, MODELS_O, KEYREF_K, TTS_TEST_KEY_NAME]
   for (const k of touched) delete process.env[k]
 

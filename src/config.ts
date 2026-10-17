@@ -1,7 +1,7 @@
 // dsh-tts configuration resolution.
 //
 // Sources, lowest to highest priority: built-in defaults (the api value),
-// the DSH_TTS_* env contract, the cordis config snapshot delivered at plugin
+// the TTS_* env contract, the cordis config snapshot delivered at plugin
 // construction (the composed plugin-patch / profile-patch layers), and the
 // live re-read of the `dsh-tts:` section of the user settings document (the
 // settings file is re-read on every call, so settings edits apply without a
@@ -35,18 +35,18 @@ export const API_OPENAI_COMPATIBLE = 'openai-compatible'
 export const SETTINGS_SECTION = 'dsh-tts'
 
 /** Env variable holding the default route name. */
-export const ENV_DEFAULT_PROVIDER = 'DSH_TTS_DEFAULT_PROVIDER'
+export const ENV_DEFAULT_PROVIDER = 'TTS_DEFAULT_PROVIDER'
 
 /**
- * Matches DSH_TTS_PROVIDER_<NAME>_<FIELD>; captures name (underscored, since
+ * Matches TTS_PROVIDER_<NAME>_<FIELD>; captures name (underscored, since
  * env names cannot carry hyphens) and field.
  */
-const ENV_PROVIDER_RE = /^DSH_TTS_PROVIDER_([A-Z0-9_]+)_(BASEURL|API|APIKEYENV|HEADERS|MODELS|DISPLAYNAME)$/
+const ENV_PROVIDER_RE = /^TTS_PROVIDER_([A-Z0-9_]+)_(BASEURL|API|APIKEYENV|HEADERS|MODELS|DISPLAYNAME)$/
 
 /** The per-field env variable names of one provider (the 1:1 env contract). */
 export function providerEnvVars(name: string): Record<string, string> {
   const upper = canonicalName(name).toUpperCase().replace(/-/g, '_')
-  const prefix = `DSH_TTS_PROVIDER_${upper}_`
+  const prefix = `TTS_PROVIDER_${upper}_`
   return {
     baseURL: `${prefix}BASEURL`,
     api: `${prefix}API`,
@@ -84,7 +84,7 @@ export interface EnvContract {
 }
 
 /**
- * Parse the DSH_TTS_* env contract.
+ * Parse the TTS_* env contract.
  * @param env the env record (process.env at call time, or a test fixture).
  * @returns the parsed default route name and per-route raw fields.
  */

@@ -3,7 +3,7 @@
 //
 // Layer model (lowest to highest priority):
 //   1. built-in defaults (api only),
-//   2. the DSH_TTS_* env contract (static per process boot),
+//   2. the TTS_* env contract (static per process boot),
 //   3. the cordis config snapshot delivered at plugin construction (the
 //      composed plugin-patch / profile-patch layers),
 //   4. the live re-read of the `dsh-tts:` section of the user settings

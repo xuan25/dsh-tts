@@ -1,7 +1,7 @@
 // dsh-tts: text-to-speech plugin for dsh.
 // One tts tool (synth / voices / providers / models / status / phonemize verbs)
 // over OpenAI-compatible TTS backends. Providers are configured through the
-// DSH_TTS_* env contract (static per process boot) and/or the cordis config
+// TTS_* env contract (static per process boot) and/or the cordis config
 // layer delivered by the loader (a patch entry targeting this plugin's id with
 // a `config` object) and/or a `dsh-tts:` section in the user settings document
 // (re-read on every call, so settings edits apply without a restart).
@@ -114,7 +114,7 @@ export class DshTtsPlugin extends Service {
       text:
         'Synthesize speech from OpenAI-compatible TTS backends with the tts tool ' +
         '(verbs: synth, voices, providers, models, status, phonemize). ' +
-        'Providers are configured via the DSH_TTS_* env contract or a dsh-tts: section in the user ' +
+        'Providers are configured via the TTS_* env contract or a dsh-tts: section in the user ' +
         'settings document; see the dsh-tts README for the config contract. ' +
         'The plugin writes audio files to disk and reports container checks; delivering a file ' +
         'is the agent\'s job.',

@@ -57,7 +57,7 @@ plugin command:
 dsh plugin --profile <name> add dsh-tts
 ```
 
-Configuration is layered: built-in defaults, the `DSH_TTS_*` env contract, a
+Configuration is layered: built-in defaults, the `TTS_*` env contract, a
 cordis patch file, a `dsh-tts` settings section (see below); the plugin
 creates no config or state files.
 
@@ -68,7 +68,7 @@ the `providers` verb reports the originating layer of every field, so a
 shadowed value is never silent:
 
 1. the built-in default (`api: openai-compatible`),
-2. the `DSH_TTS_*` env contract (static per process boot),
+2. the `TTS_*` env contract (static per process boot),
 3. the cordis config layer (a patch entry with id `dsh-tts` and a `config`
    object, or profile-level patches),
 4. the `dsh-tts:` section in the user settings document
@@ -83,16 +83,16 @@ dsh-tts:
       baseURL: http://<host>:<port>/v1
     hosted:
       baseURL: https://api.example.com/v1
-      apiKeyEnv: DSH_TTS_HOSTED_KEY
+      apiKeyEnv: TTS_HOSTED_KEY
       models: [kokoro-v2]
       displayName: Hosted Speech
 ```
 
-The env contract mirrors the config fields 1:1: `DSH_TTS_DEFAULT_PROVIDER`,
-and per route `<NAME>` the variables `DSH_TTS_PROVIDER_<NAME>_BASEURL`,
-`DSH_TTS_PROVIDER_<NAME>_API`, `DSH_TTS_PROVIDER_<NAME>_APIKEYENV`,
-`DSH_TTS_PROVIDER_<NAME>_HEADERS`, `DSH_TTS_PROVIDER_<NAME>_MODELS`,
-`DSH_TTS_PROVIDER_<NAME>_DISPLAYNAME`. The `<NAME>` segment is the route name
+The env contract mirrors the config fields 1:1: `TTS_DEFAULT_PROVIDER`,
+and per route `<NAME>` the variables `TTS_PROVIDER_<NAME>_BASEURL`,
+`TTS_PROVIDER_<NAME>_API`, `TTS_PROVIDER_<NAME>_APIKEYENV`,
+`TTS_PROVIDER_<NAME>_HEADERS`, `TTS_PROVIDER_<NAME>_MODELS`,
+`TTS_PROVIDER_<NAME>_DISPLAYNAME`. The `<NAME>` segment is the route name
 uppercased with `-` written as `_`. The `headers` value is a JSON object
 string, and the `models` value is a comma-separated list of model ids. The
 `baseURL` value is the OpenAI-compatible base URL including the `/v1` prefix
@@ -141,7 +141,7 @@ message text identifies the failure.
   names.
 - When the error message carries the text "multiple providers configured
   (...) and no default is set", pass the `provider` argument explicitly, or
-  set `DSH_TTS_DEFAULT_PROVIDER`, or set the settings `defaultProvider`.
+  set `TTS_DEFAULT_PROVIDER`, or set the settings `defaultProvider`.
 - When `status` reports `reachable: false`, the `error` field carries the
   cause; the probe uses a 15 s budget against `GET {baseURL}/models`.
 - When `voices` reports `source: static`, the backend answered 404 to

@@ -1,6 +1,6 @@
 ---
 name: dsh-tts
-description: "Synthesizes speech and queries TTS backends through OpenAI-compatible endpoints with the tts tool, which exposes the synth, voices, providers, models, status, and phonemize verbs. Providers are configured through the DSH_TTS_* env contract or a dsh-tts: settings section. The tool writes the audio file to disk and reports container checks."
+description: "Synthesizes speech and queries TTS backends through OpenAI-compatible endpoints with the tts tool, which exposes the synth, voices, providers, models, status, and phonemize verbs. Providers are configured through the TTS_* env contract or a dsh-tts: settings section. The tool writes the audio file to disk and reports container checks."
 whenToUse: "Use this skill when the user asks to synthesize speech or read text aloud, or to inspect the configured TTS providers, voices, models, or the live backend status."
 ---
 
@@ -91,13 +91,13 @@ Timeouts are constants: synth 180 s, probes 15 s, phonemize 30 s.
 
 | Variable | Config field |
 |---|---|
-| `DSH_TTS_DEFAULT_PROVIDER` | `defaultProvider` |
-| `DSH_TTS_PROVIDER_<NAME>_BASEURL` | `providers.<name>.baseURL` |
-| `DSH_TTS_PROVIDER_<NAME>_API` | `providers.<name>.api`; the plugin implements only `openai-compatible` |
-| `DSH_TTS_PROVIDER_<NAME>_APIKEYENV` | `providers.<name>.apiKeyEnv`; the field is the name of an environment variable, and it never carries the secret itself |
-| `DSH_TTS_PROVIDER_<NAME>_HEADERS` | `providers.<name>.headers`; the value is a JSON object string |
-| `DSH_TTS_PROVIDER_<NAME>_MODELS` | `providers.<name>.models`; the value is a comma-separated list of model ids |
-| `DSH_TTS_PROVIDER_<NAME>_DISPLAYNAME` | `providers.<name>.displayName` |
+| `TTS_DEFAULT_PROVIDER` | `defaultProvider` |
+| `TTS_PROVIDER_<NAME>_BASEURL` | `providers.<name>.baseURL` |
+| `TTS_PROVIDER_<NAME>_API` | `providers.<name>.api`; the plugin implements only `openai-compatible` |
+| `TTS_PROVIDER_<NAME>_APIKEYENV` | `providers.<name>.apiKeyEnv`; the field is the name of an environment variable, and it never carries the secret itself |
+| `TTS_PROVIDER_<NAME>_HEADERS` | `providers.<name>.headers`; the value is a JSON object string |
+| `TTS_PROVIDER_<NAME>_MODELS` | `providers.<name>.models`; the value is a comma-separated list of model ids |
+| `TTS_PROVIDER_<NAME>_DISPLAYNAME` | `providers.<name>.displayName` |
 
 The `<NAME>` segment is the route name uppercased with `-` written as `_`
 (the route `my-backend` maps to `MY_BACKEND`). Route matching is
@@ -112,7 +112,7 @@ above.
 ## Config layering
 
 The layers, from lowest to highest priority, are the built-in defaults
-(`api: openai-compatible`); the `DSH_TTS_*` env contract; a cordis patch
+(`api: openai-compatible`); the `TTS_*` env contract; a cordis patch
 entry with id `dsh-tts` (or profile-level patches); and the `dsh-tts:`
 section in the user settings document (`$DSH_HOME/settings.yaml`). The tool
 re-reads the settings document on every call, so settings edits apply without
@@ -126,7 +126,7 @@ dsh-tts:
       baseURL: http://<host>:<port>/v1
     hosted:
       baseURL: https://api.example.com/v1
-      apiKeyEnv: DSH_TTS_HOSTED_KEY
+      apiKeyEnv: TTS_HOSTED_KEY
       models: [kokoro-v2]
 ```
 
@@ -149,7 +149,7 @@ identifies the shape:
 
 | error text | meaning |
 |---|---|
-| `TTS_NOT_CONFIGURED` | No provider route is configured; the document carries a `hint` that points to the `DSH_TTS_*` env contract or the `dsh-tts:` settings section. |
+| `TTS_NOT_CONFIGURED` | No provider route is configured; the document carries a `hint` that points to the `TTS_*` env contract or the `dsh-tts:` settings section. |
 | `unknown provider "x" (configured: ...)` | The provider argument names a route that is not configured; the message lists the configured names. |
 | `default provider "x" is not configured` | The configured default name matches no route. |
 | `multiple providers configured (...) and no default is set; pass the provider argument explicitly` | More than one route is configured, no default is set, and the call passed no provider argument. |
@@ -162,7 +162,7 @@ identifies the shape:
 ## Troubleshooting
 
 - When the error is `TTS_NOT_CONFIGURED`, set at least one route
-  (`DSH_TTS_PROVIDER_<NAME>_BASEURL` or the settings section).
+  (`TTS_PROVIDER_<NAME>_BASEURL` or the settings section).
 - When the error message carries the text `credential missing: environment
   variable "X" is not set`, set `X` in the environment or add it to
   `$DSH_HOME/.credentials.yaml`.

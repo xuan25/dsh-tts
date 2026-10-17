@@ -1,5 +1,5 @@
 # dsh-tts: cordis bundle patch that registers the plugin in the profile.
-# Base configuration is the DSH_TTS_* env contract (see README); higher patch
+# Base configuration is the TTS_* env contract (see README); higher patch
 # layers may override it via `config` on this id, and a `dsh-tts:` section in
 # the user settings document is honored as well (re-read per call, so settings
 # edits take effect without a restart). The bundle carries no config values of

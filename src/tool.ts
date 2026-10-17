@@ -79,7 +79,7 @@ function pickProvider(cfg: TtsConfig, argProvider: string | undefined): { profil
   if (cfg.providers.length > 1) {
     return { error: `multiple providers configured (${names}) and no default is set; pass the provider argument explicitly` }
   }
-  return { error: 'TTS_NOT_CONFIGURED: no provider route is configured (see the dsh-tts README: DSH_TTS_* env or the dsh-tts: settings section)' }
+  return { error: 'TTS_NOT_CONFIGURED: no provider route is configured (see the dsh-tts README: TTS_* env or the dsh-tts: settings section)' }
 }
 
 /** One route entry of the providers result. */
@@ -120,7 +120,7 @@ export function registerTool(ctx: Context, delivered: DeliveredConfig | undefine
       name: 'tts',
       description:
         'Synthesize speech and query TTS backends through OpenAI-compatible endpoints. ' +
-        'Providers are configured via the DSH_TTS_* env contract or a dsh-tts: section in the user settings ' +
+        'Providers are configured via the TTS_* env contract or a dsh-tts: section in the user settings ' +
         'document (a provider needs at least a base URL). ' +
         'synth writes the audio file to disk (default: <cwd>/tts/; pass out to choose) and reports container checks. ' +
         'voices lists the backend voices (a 404 falls back to the static OpenAI table). ' +
@@ -196,7 +196,7 @@ export function registerTool(ctx: Context, delivered: DeliveredConfig | undefine
             : { configured: false, default: null, providers: [] }
           return JSON.stringify(doc)
         }
-        if (!cfg.configured) return err('TTS_NOT_CONFIGURED', { hint: 'configure a provider via the DSH_TTS_* env contract or a dsh-tts: section in the user settings document' })
+        if (!cfg.configured) return err('TTS_NOT_CONFIGURED', { hint: 'configure a provider via the TTS_* env contract or a dsh-tts: section in the user settings document' })
 
         const provider = pickProvider(cfg, typeof args?.provider === 'string' ? args.provider : undefined)
         if (provider.profile === undefined) return err(provider.error ?? 'provider resolution failed')
